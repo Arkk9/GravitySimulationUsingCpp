@@ -41,7 +41,7 @@ struct Object {
     double radius_screen(double camScale) const {
         // compute radius in screen pixels using mass->physical volume -> scale down:
         double volume = mass / density;
-        double r_phys = cbrt((3.0 * volume) / (4.0 * M_PI)); // meters
+    double r_phys = cbrt((3.0 * volume) / (4.0 * acos(-1.0))); // meters
         // convert to screen pixels using camScale (higher camScale -> bigger objects)
         double pix = r_phys * 1e-4 * camScale; // tuned factor
         if (pix < 2.0) pix = 2.0;
@@ -144,7 +144,6 @@ void drawObject(const Object &o, const Vec3 &camPos, double camScale) {
     if (o.glow) {
         // stronger filled circle and halo
         for (int i=4;i>=1;--i) {
-            int alpha = 160 / i;
             setfillstyle(SOLID_FILL, o.color);
             setcolor(o.color);
             fillellipse(sx, sy, (int)(r*(1.0 + 0.2*i)), (int)(r*(1.0 + 0.2*i)));
@@ -162,13 +161,14 @@ void drawObject(const Object &o, const Vec3 &camPos, double camScale) {
     ss << (long long)(o.mass);
     std::string s = ss.str();
     setcolor(WHITE);
-    outtextxy(sx + (int)r + 2, sy - 6, s.c_str());
+    // outtextxy expects a non-const char* in this graphics.h; pass a mutable buffer
+    outtextxy(sx + (int)r + 2, sy - 6, &s[0]);
 }
 
 int main() {
     int gd = DETECT, gm;
-    initgraph(&gd, &gm, "");
-    initwindow(WIN_W, WIN_H, "Gravity 2D (graphics.h) - approximation");
+        initgraph(&gd, &gm, nullptr);
+    initwindow(WIN_W, WIN_H, nullptr);
 
     // camera
     Vec3 camPos(0,0, -6000);
@@ -320,13 +320,17 @@ int main() {
             drawObject(o, camPos, camScale);
         }
 
-        // HUD
-        setcolor(WHITE);
-        std::ostringstream hud;
-        hud << "Objects: " << objs.size() << "   Pause: " << (pause ? "YES" : "NO") << "   CamScale: " << camScale;
-        outtextxy(10,10, hud.str().c_str());
-        outtextxy(10, 28, "Left click: spawn (hold to reposition), Right click (while initializing): grow mass");
-        outtextxy(10, 44, "WASD: pan  +/-: zoom  K: pause/unpause  Q: quit");
+    // HUD
+    setcolor(WHITE);
+    std::ostringstream hud;
+    hud << "Objects: " << objs.size() << "   Pause: " << (pause ? "YES" : "NO") << "   CamScale: " << camScale;
+    // store strings in std::string so we can pass a mutable char* (graphics.h expects char*)
+    std::string hudStr = hud.str();
+    outtextxy(10,10, &hudStr[0]);
+    std::string help1 = "Left click: spawn (hold to reposition), Right click (while initializing): grow mass";
+    outtextxy(10, 28, &help1[0]);
+    std::string help2 = "WASD: pan  +/-: zoom  K: pause/unpause  Q: quit";
+    outtextxy(10, 44, &help2[0]);
 
         // small sleep to control frame rate
         delay(10);
